@@ -5,28 +5,42 @@
     <h2>Inventory</h2>
     <div>
       <a href="?all=1" class="btn btn-outline-primary me-2">Show All</a>
-      <a href="/export" class="btn btn-outline-success">Export to Excel</a>
+      <a href="/export" class="btn btn-outline-success me-2">Export to Excel</a>
+      <button onclick="window.print()" class="btn btn-outline-dark">Print A4</button>
     </div>
   </div>
 
-  <table class="table table-bordered table-striped mt-3">
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th>Quantity</th>
-        <th>Minimum Required</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in inventory %}
-        <tr {% if item['Qty'] < item['Min Qty'] %} class="table-danger" {% endif %}>
-          <td>{{ item['Product ID'] }}</td>
-          <td>{{ item['Qty'] }}</td>
-          <td>{{ item['Min Qty'] }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="accordion mt-3" id="inventoryAccordion">
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseInventory" aria-expanded="true" aria-controls="collapseInventory">
+          Inventory Table
+        </button>
+      </h2>
+      <div id="collapseInventory" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <table class="table table-bordered table-striped">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Minimum Required</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in inventory %}
+                <tr {% if item['Qty'] < item['Min Qty'] %} class="table-danger" {% endif %}>
+                  <td>{{ item['Product ID'] }}</td>
+                  <td>{{ item['Qty'] }}</td>
+                  <td>{{ item['Min Qty'] }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <h4 class="mt-5">Add New Product</h4>
   <form method="post" class="row g-3">
@@ -67,13 +81,15 @@
 
 <style>
   @media print {
-    .btn, form, .container > div > a {
-      display: none;
+    .btn, form, .container > div > a, .accordion-button {
+      display: none !important;
     }
     table {
       font-size: 12pt;
     }
+    .accordion-collapse {
+      display: block !important;
+    }
   }
 </style>
 {% endblock %}
-
