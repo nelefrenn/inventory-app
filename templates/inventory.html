@@ -43,6 +43,26 @@
       <button type="submit" class="btn btn-success">Add</button>
     </div>
   </form>
+
+  <h4 class="mt-5">Update Existing Product</h4>
+  <form method="post" class="row g-3">
+    <div class="col-md-4">
+      <select name="update_product" class="form-select" required>
+        {% for item in inventory %}
+          <option value="{{ item['Product ID'] }}">{{ item['Product ID'] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <input type="number" name="update_qty" class="form-control" placeholder="New Qty" required>
+    </div>
+    <div class="col-md-3">
+      <input type="number" name="update_min" class="form-control" placeholder="New Min Qty">
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-warning">Update</button>
+    </div>
+  </form>
 </div>
 
 <style>
