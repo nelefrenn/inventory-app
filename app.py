@@ -48,6 +48,7 @@ def consumir_kit(kit_name, cantidad):
     inv.to_csv(INVENTORY_CSV, index=False)
 
 @app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 @app.route('/sell', methods=['GET', 'POST'])
 def sell():
     kits = read_kits()['Product ID'].unique()
