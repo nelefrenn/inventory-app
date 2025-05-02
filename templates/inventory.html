@@ -1,1 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <h2>Inventory</h2>
+    <div>
+      <a href="?all=1" class="btn btn-outline-primary me-2">Show All</a>
+      <a href="/export" class="btn btn-outline-success">Export to Excel</a>
+    </div>
+  </div>
+
+  <table class="table table-bordered table-striped mt-3">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Quantity</th>
+        <th>Minimum Required</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in inventory %}
+        <tr {% if item['Qty'] < item['Min Qty'] %} class="table-danger" {% endif %}>
+          <td>{{ item['Product ID'] }}</td>
+          <td>{{ item['Qty'] }}</td>
+          <td>{{ item['Min Qty'] }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h4 class="mt-5">Add New Product</h4>
+  <form method="post" class="row g-3">
+    <div class="col-md-4">
+      <input type="text" name="product" class="form-control" placeholder="Product ID" required>
+    </div>
+    <div class="col-md-3">
+      <input type="number" name="qty" class="form-control" placeholder="Qty" required>
+    </div>
+    <div class="col-md-3">
+      <input type="number" name="min_qty" class="form-control" placeholder="Min Qty" required>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-success">Add</button>
+    </div>
+  </form>
+</div>
+
+<style>
+  @media print {
+    .btn, form, .container > div > a {
+      display: none;
+    }
+    table {
+      font-size: 12pt;
+    }
+  }
+</style>
+{% endblock %}
 
