@@ -2,7 +2,7 @@
 {% block content %}
 <div class="container mt-4">
   <h2>Register Kit Sale</h2>
- <form method="post" action="/sell">
+  <form method="post" action="/sell">
     <div class="mb-3">
       <label for="kit" class="form-label">Select Kit</label>
       <select class="form-select" name="kit" id="kit" required>
@@ -21,7 +21,7 @@
   <hr>
 
   <h2 class="mt-5">Create New Kit</h2>
-  <form method="post">
+  <form method="post" action="/sell">
     <div class="mb-3">
       <label class="form-label">New Kit Name</label>
       <input type="text" name="kit_name" class="form-control" required>
