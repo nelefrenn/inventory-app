@@ -24,6 +24,14 @@ def add_product_to_inventory(product_id, qty, min_qty):
     inv = pd.concat([inv, new_row], ignore_index=True)
     inv.to_csv(INVENTORY_CSV, index=False)
 
+# Actualizar producto existente
+def update_product(product_id, new_qty, new_min_qty=None):
+    inv = read_inventory()
+    inv.loc[inv['Product ID'] == product_id, 'Qty'] = new_qty
+    if new_min_qty is not None:
+        inv.loc[inv['Product ID'] == product_id, 'Min Qty'] = new_min_qty
+    inv.to_csv(INVENTORY_CSV, index=False)
+
 # Guardar nuevo kit
 def add_new_kit(kit_name, components):
     rows = []
@@ -48,7 +56,6 @@ def consumir_kit(kit_name, cantidad):
     inv.to_csv(INVENTORY_CSV, index=False)
 
 @app.route('/')
-@app.route('/', methods=['GET', 'POST'])
 @app.route('/sell', methods=['GET', 'POST'])
 def sell():
     kits = read_kits()['Product ID'].unique()
@@ -79,10 +86,17 @@ def inventory():
         inv = inv[inv['Qty'] < inv['Min Qty']]
 
     if request.method == 'POST':
-        new_product = request.form['product']
-        qty = float(request.form['qty'])
-        min_qty = float(request.form['min_qty'])
-        add_product_to_inventory(new_product, qty, min_qty)
+        if 'update_product' in request.form:
+            product = request.form['update_product']
+            qty = float(request.form['update_qty'])
+            min_qty = request.form.get('update_min')
+            min_qty = float(min_qty) if min_qty else None
+            update_product(product, qty, min_qty)
+        else:
+            new_product = request.form['product']
+            qty = float(request.form['qty'])
+            min_qty = float(request.form['min_qty'])
+            add_product_to_inventory(new_product, qty, min_qty)
         return redirect(url_for('inventory'))
 
     return render_template('inventory.html', inventory=inv.to_dict(orient='records'), show_all=show_all)
@@ -100,4 +114,5 @@ if __name__ == '__main__':
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
 
