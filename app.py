@@ -1,20 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 import pandas as pd
 import os
-from io import BytesIO
 from datetime import datetime
 import csv
 
 app = Flask(__name__)
-app.secret_key = 'secure-key'  # Change in production
+app.secret_key = 'secure-key'  # Cambia esto en producción
 
-# CSV paths
+# Rutas de archivos CSV
 KIT_CSV = 'kit.csv'
 INVENTORY_CSV = 'inventory.csv'
 USERS_CSV = 'users.csv'
 ADMIN_LOGS_CSV = 'admin_logs.csv'
 
-# --- Helper Functions ---
+# --- Funciones auxiliares ---
+
 def load_users():
     return pd.read_csv(USERS_CSV)
 
@@ -46,7 +46,8 @@ def read_admin_logs():
         return pd.read_csv(ADMIN_LOGS_CSV, names=['Timestamp', 'Username', 'Action', 'Details'])
     return pd.DataFrame(columns=['Timestamp', 'Username', 'Action', 'Details'])
 
-# --- Routes ---
+# --- Rutas principales ---
+
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -82,6 +83,12 @@ def register():
             flash("You are not pre-authorized or already registered.")
     return render_template('register.html')
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("You have been logged out.")
+    return redirect(url_for('login'))
+
 @app.route('/daily')
 def daily():
     if 'user' not in session:
@@ -89,12 +96,6 @@ def daily():
     if session['user']['role'] not in ['daily', 'admin']:
         return redirect(url_for('login'))
     return render_template('daily.html')
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    flash("You have been logged out.")
-    return redirect(url_for('login'))
 
 @app.route('/receiving')
 def receiving():
@@ -110,10 +111,14 @@ def reports():
 
 @app.route('/admin_logs')
 def admin_logs():
+    if 'user' not in session or session['user']['role'] != 'admin':
+        flash("Access denied. Admins only.")
+        return redirect(url_for('login'))
     logs = read_admin_logs()
     return render_template('admin_logs.html', logs=logs.to_dict(orient='records'))
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
 
