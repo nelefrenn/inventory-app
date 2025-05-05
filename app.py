@@ -17,7 +17,7 @@ TESTING_LOG_CSV = 'testing_log.csv'
 
 # --- Helper functions ---
 def load_users():
-    return pd.read_csv(USERS_CSV)
+    return pd.read_csv(USERS_CSV, dtype={'Password': str})
 
 def verify_user(first, second, password):
     df = load_users()
@@ -143,4 +143,3 @@ def testing():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
