@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from io import BytesIO
 from datetime import datetime
+import csv
 
 app = Flask(__name__)
 app.secret_key = 'secure-key'  # Change in production
@@ -11,6 +12,7 @@ app.secret_key = 'secure-key'  # Change in production
 KIT_CSV = 'kit.csv'
 INVENTORY_CSV = 'inventory.csv'
 USERS_CSV = 'users.csv'
+ADMIN_LOGS_CSV = 'admin_logs.csv'
 
 # --- Helper Functions ---
 def load_users():
@@ -30,8 +32,19 @@ def register_user(first, second, password):
         if pd.isna(df.loc[mask, 'Password'].values[0]) or df.loc[mask, 'Password'].values[0] == '':
             df.loc[mask, 'Password'] = password
             df.to_csv(USERS_CSV, index=False)
+            log_admin_action('system', 'Registered user', f'{first} {second}')
             return True
     return False
+
+def log_admin_action(username, action, details):
+    with open(ADMIN_LOGS_CSV, 'a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([datetime.now().isoformat(), username, action, details])
+
+def read_admin_logs():
+    if os.path.exists(ADMIN_LOGS_CSV):
+        return pd.read_csv(ADMIN_LOGS_CSV, names=['Timestamp', 'Username', 'Action', 'Details'])
+    return pd.DataFrame(columns=['Timestamp', 'Username', 'Action', 'Details'])
 
 # --- Routes ---
 @app.route('/')
@@ -83,7 +96,6 @@ def logout():
     flash("You have been logged out.")
     return redirect(url_for('login'))
 
-# Placeholder routes to connect UI
 @app.route('/receiving')
 def receiving():
     return render_template('receiving.html')
@@ -95,6 +107,11 @@ def testing():
 @app.route('/reports')
 def reports():
     return render_template('reports.html', daily_data=[], weekly_data=[], comparison_data=[])
+
+@app.route('/admin_logs')
+def admin_logs():
+    logs = read_admin_logs()
+    return render_template('admin_logs.html', logs=logs.to_dict(orient='records'))
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
