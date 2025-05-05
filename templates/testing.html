@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Testing - PO Validation</h2>
+
+  <form method="post">
+    <div class="mb-3 row">
+      <label class="col-sm-2 col-form-label">PO Number</label>
+      <div class="col-sm-6">
+        <input type="text" name="po_number" class="form-control" required>
+      </div>
+      <div class="col-sm-4">
+        <button type="submit" name="load_po" class="btn btn-primary">Load PO</button>
+      </div>
+    </div>
+  </form>
+
+  {% if po_data %}
+  <form method="post">
+    <input type="hidden" name="po_number" value="{{ po_number }}">
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Product ID</th>
+          <th>Received</th>
+          <th>Tested</th>
+          <th>Failed</th>
+          <th>Good</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in po_data %}
+        <tr>
+          <td>{{ row['Product ID'] }}</td>
+          <td>{{ row['Received'] }}</td>
+          <td>
+            <input type="number" name="tested_{{ loop.index }}" class="form-control" min="0" max="{{ row['Received'] }}" onchange="updateGood(this, {{ loop.index }}, {{ row['Received'] }})">
+            <input type="hidden" name="product_id_{{ loop.index }}" value="{{ row['Product ID'] }}">
+          </td>
+          <td>
+            <input type="number" name="failed_{{ loop.index }}" class="form-control" min="0" value="0" onchange="updateGood(this, {{ loop.index }}, {{ row['Received'] }})">
+          </td>
+          <td>
+            <input type="text" id="good_{{ loop.index }}" class="form-control" readonly>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="d-flex gap-3">
+      <button type="submit" name="start" class="btn btn-success">Start</button>
+      <button type="submit" name="stop" class="btn btn-warning">Stop</button>
+      <button type="submit" name="close" class="btn btn-danger" onclick="return confirm('Are you sure you want to close this PO? This cannot be undone.')">Close</button>
+    </div>
+    <input type="hidden" name="total_rows" value="{{ po_data|length }}">
+  </form>
+  {% endif %}
+</div>
+
+<script>
+  function updateGood(input, index, received) {
+    const tested = parseInt(document.querySelector(`[name='tested_${index}']`).value) || 0;
+    const failed = parseInt(document.querySelector(`[name='failed_${index}']`).value) || 0;
+    const good = tested - failed;
+    const max = parseInt(received);
+
+    if (tested > max) {
+      alert("Tested quantity cannot exceed received amount.");
+      input.value = "";
+      document.getElementById(`good_${index}`).value = "";
+      return;
+    }
+    if (failed > tested) {
+      alert("Failed quantity cannot exceed tested amount.");
+      input.value = "";
+      document.getElementById(`good_${index}`).value = "";
+      return;
+    }
+    document.getElementById(`good_${index}`).value = good >= 0 ? good : "";
+  }
+</script>
+{% endblock %}
