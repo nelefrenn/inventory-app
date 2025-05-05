@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Receiving - PO Management</h2>
+
+  <form method="post">
+    <div class="mb-3 row">
+      <label class="col-sm-2 col-form-label">PO Number</label>
+      <div class="col-sm-6">
+        <input type="text" name="po_number" class="form-control" required>
+      </div>
+      <div class="col-sm-4">
+        <div class="btn-group">
+          <button type="submit" name="new_po" class="btn btn-success">New PO#</button>
+          <button type="submit" name="continue_po" class="btn btn-outline-primary">Continue PO#</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  {% if po_active %}
+  <form method="post">
+    <input type="hidden" name="po_number" value="{{ po_number }}">
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <label class="form-label">Product ID</label>
+        <select class="form-select" name="product_id">
+          {% for product in inventory %}
+            <option value="{{ product }}">{{ product }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Quantity Received</label>
+        <input type="number" name="quantity" class="form-control" required min="1">
+      </div>
+      <div class="col-md-4 d-grid align-items-end">
+        <button type="submit" name="add_product" class="btn btn-primary">Add Product</button>
+      </div>
+    </div>
+  </form>
+
+  {% if current_po %}
+  <h5>PO #{{ po_number }} - Received Items</h5>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Product ID</th>
+        <th>Quantity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in current_po %}
+      <tr>
+        <td>{{ row['Product ID'] }}</td>
+        <td>{{ row['Quantity'] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="d-flex gap-3">
+    <form method="post">
+      <input type="hidden" name="po_number" value="{{ po_number }}">
+      <button type="submit" name="start" class="btn btn-success">Start</button>
+      <button type="submit" name="stop" class="btn btn-warning">Stop</button>
+      <button type="submit" name="close" class="btn btn-danger" onclick="return confirm('Are you sure you want to close this PO?')">Close PO</button>
+    </form>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
