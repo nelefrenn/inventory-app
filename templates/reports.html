@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Production Reports</h2>
+
+  <form method="get" class="row g-3 align-items-end">
+    <div class="col-md-3">
+      <label for="worker" class="form-label">Worker</label>
+      <input type="text" name="worker" id="worker" class="form-control" placeholder="First or Last Name">
+    </div>
+    <div class="col-md-3">
+      <label for="start_date" class="form-label">Start Date</label>
+      <input type="date" name="start_date" id="start_date" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <label for="end_date" class="form-label">End Date</label>
+      <input type="date" name="end_date" id="end_date" class="form-control">
+    </div>
+    <div class="col-md-2">
+      <label for="activity" class="form-label">Activity</label>
+      <select name="activity" id="activity" class="form-select">
+        <option value="">All</option>
+        <option value="receiving">Receiving</option>
+        <option value="testing">Testing</option>
+      </select>
+    </div>
+    <div class="col-md-1 d-grid">
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
+  </form>
+
+  <hr>
+
+  <h4>Daily Summary</h4>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Worker</th>
+        <th>Hours Worked</th>
+        <th>Products Received</th>
+        <th>Products Tested</th>
+        <th>Failed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in daily_data %}
+      <tr>
+        <td>{{ row['Date'] }}</td>
+        <td>{{ row['Worker'] }}</td>
+        <td>{{ row['Hours'] }}</td>
+        <td>{{ row['Received'] }}</td>
+        <td>{{ row['Tested'] }}</td>
+        <td>{{ row['Failed'] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h4 class="mt-5">Weekly Summary</h4>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Week</th>
+        <th>Worker</th>
+        <th>Total Hours</th>
+        <th>Total Products</th>
+        <th>Total Failed</th>
+        <th>Efficiency (Prod/hr)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in weekly_data %}
+      <tr>
+        <td>{{ row['Week'] }}</td>
+        <td>{{ row['Worker'] }}</td>
+        <td>{{ row['Hours'] }}</td>
+        <td>{{ row['Total Products'] }}</td>
+        <td>{{ row['Failed'] }}</td>
+        <td>{{ row['Efficiency'] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h4 class="mt-5">Worker Comparison</h4>
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Worker</th>
+        <th>Total Hours</th>
+        <th>Total Products</th>
+        <th>Efficiency (Prod/hr)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in comparison_data %}
+      <tr>
+        <td>{{ row['Worker'] }}</td>
+        <td>{{ row['Hours'] }}</td>
+        <td>{{ row['Products'] }}</td>
+        <td>{{ row['Efficiency'] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="mt-4">
+    <a href="/export_reports" class="btn btn-outline-success">Export to Excel</a>
+    <button onclick="window.print()" class="btn btn-outline-dark">Print</button>
+  </div>
+</div>
+{% endblock %}
