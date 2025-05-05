@@ -110,82 +110,6 @@ def daily():
         return redirect(url_for('login'))
     return render_template('daily.html')
 
-@app.route('/testing_report')
-def testing_report():
-    if 'user' not in session or session['user']['role'] != 'admin':
-        flash("Access denied.")
-        return redirect(url_for('login'))
-
-    if not os.path.exists(TESTING_LOG_CSV):
-        return render_template('testing_report.html', data=[])
-
-    df = pd.read_csv(TESTING_LOG_CSV)
-
-    po_filter = request.args.get('po_number', '').strip()
-    product_filter = request.args.get('product_id', '').strip()
-    operator_filter = request.args.get('operator', '').strip().lower()
-
-    if po_filter:
-        df = df[df['PO Number'].astype(str).str.contains(po_filter, case=False)]
-    if product_filter:
-        df = df[df['Product ID'].astype(str).str.contains(product_filter, case=False)]
-    if operator_filter:
-        df = df[df['First Name'].str.lower().str.contains(operator_filter) | df['Second Name'].str.lower().str.contains(operator_filter)]
-
-    return render_template('testing_report.html', data=df.to_dict(orient='records'))
-
-@app.route('/sell')
-def sell():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    if not os.path.exists(KIT_CSV) or not os.path.exists(INVENTORY_CSV):
-        return render_template('sell.html', kits=[], message="Missing CSV files.")
-
-    kits_df = pd.read_csv(KIT_CSV)
-    inventory_df = pd.read_csv(INVENTORY_CSV)
-
-    if request.method == 'POST':
-        kit_selected = request.form['kit']
-        qty = int(request.form['quantity'])
-        kit_items = kits_df[kits_df['Kit'] == kit_selected]
-        for _, row in kit_items.iterrows():
-            pid = row['Product ID']
-            req_qty = row['Quantity'] * qty
-            inventory_df.loc[inventory_df['Product ID'] == pid, 'Quantity'] -= req_qty
-        inventory_df.to_csv(INVENTORY_CSV, index=False)
-        flash("Inventory updated based on kit sale.")
-        return redirect(url_for('sell'))
-
-    kits = kits_df['Kit'].unique().tolist()
-    return render_template('sell.html', kits=kits)
-
-@app.route('/inventory')
-def inventory():
-    if 'user' not in session:
-        return redirect(url_for('login'))
-    if not os.path.exists(INVENTORY_CSV):
-        return render_template('inventory.html', data=[])
-    df = pd.read_csv(INVENTORY_CSV)
-    return render_template('inventory.html', data=df.to_dict(orient='records'))
-
-@app.route('/reports')
-def reports():
-    if 'user' not in session or session['user']['role'] != 'admin':
-        flash("Access denied.")
-        return redirect(url_for('login'))
-    if not os.path.exists(PRODUCTION_LOG_CSV):
-        return render_template('reports.html', data=[])
-    df = pd.read_csv(PRODUCTION_LOG_CSV, names=["Date", "First Name", "Second Name", "Activity", "PO Number", "Hours Worked"])
-    return render_template('reports.html', data=df.to_dict(orient='records'))
-
-@app.route('/admin_logs')
-def admin_logs():
-    if 'user' not in session or session['user']['role'] != 'admin':
-        flash("Access denied.")
-        return redirect(url_for('login'))
-    logs = read_admin_logs()
-    return render_template('admin_logs.html', data=logs.to_dict(orient='records'))
-
 @app.route('/receiving', methods=['GET', 'POST'])
 def receiving():
     if 'user' not in session:
@@ -208,11 +132,9 @@ def receiving():
         elif 'start' in request.form:
             session['start_time'] = datetime.now().isoformat()
         elif 'stop' in request.form:
-            return redirect(url_for('logout'))
-        elif 'close' in request.form:
             if not current_po.empty:
                 for _, row in current_po.iterrows():
-                    inventory_df.loc[inventory_df['Product ID'] == row['Product ID'], 'Quantity'] += row['Quantity']
+                    inventory_df.loc[inventory_df['Product ID'] == row['Product ID'], 'Qty'] += row['Quantity']
                 save_inventory(inventory_df)
                 duration = 0
                 if 'start_time' in session:
@@ -221,9 +143,12 @@ def receiving():
                 with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
                     writer = csv.writer(file)
                     writer.writerow([datetime.now().date(), session['user']['first'], session['user']['second'], 'Receiving', po_number, round(duration, 2)])
-                clear_receiving_temp()
-                flash("PO closed and inventory updated.")
-                return redirect(url_for('daily'))
+                flash("Progress saved. You can continue later.")
+                return redirect(url_for('logout'))
+        elif 'close' in request.form:
+            flash("PO has been marked as closed. You will not be able to edit it again.")
+            clear_receiving_temp()
+            return redirect(url_for('daily'))
 
     return render_template('receiving.html', inventory=inventory_df['Product ID'].tolist(), po_active=not current_po.empty, current_po=current_po.to_dict(orient='records'), po_number=po_number)
 
@@ -234,32 +159,42 @@ def testing():
 
     if request.method == 'POST':
         po_number = request.form['po_number']
-        current_po = pd.read_csv(RECEIVING_TEMP_CSV)
-        tested_data = []
-        for i in range(int(request.form['total_rows'])):
-            pid = request.form.get(f'product_id_{i+1}')
-            tested = int(request.form.get(f'tested_{i+1}', 0))
-            failed = int(request.form.get(f'failed_{i+1}', 0))
+        total_rows = int(request.form['total_rows'])
+        inventory_df = load_inventory()
+        data_to_log = []
+
+        for i in range(1, total_rows + 1):
+            product_id = request.form[f'product_id_{i}']
+            tested = int(request.form.get(f'tested_{i}', 0))
+            failed = int(request.form.get(f'failed_{i}', 0))
             good = tested - failed
 
-            inventory_df = load_inventory()
-            inventory_df.loc[inventory_df['Product ID'] == pid, 'Quantity'] -= failed
-            save_inventory(inventory_df)
+            inventory_df.loc[inventory_df['Product ID'] == product_id, 'Qty'] -= failed
+            inventory_df['Qty'] = inventory_df['Qty'].clip(lower=0)
 
-            tested_data.append([datetime.now().date(), session['user']['first'], session['user']['second'], po_number, pid, tested, failed, good])
+            data_to_log.append([datetime.now().date(), session['user']['first'], session['user']['second'], po_number, product_id, tested, failed, good])
+
+        save_inventory(inventory_df)
 
         with open(TESTING_LOG_CSV, 'a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerows(tested_data)
+            writer.writerows(data_to_log)
 
-        if 'stop' in request.form:
+        if 'start' in request.form:
+            session['start_time'] = datetime.now().isoformat()
+        elif 'stop' in request.form:
+            duration = 0
+            if 'start_time' in session:
+                start_time = datetime.fromisoformat(session['start_time'])
+                duration = (datetime.now() - start_time).total_seconds() / 3600
+            with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([datetime.now().date(), session['user']['first'], session['user']['second'], 'Testing', po_number, round(duration, 2)])
+            flash("Testing progress saved.")
             return redirect(url_for('logout'))
         elif 'close' in request.form:
-            flash("PO testing closed.")
+            flash("Testing for this PO is closed.")
             return redirect(url_for('daily'))
-
-    elif request.method == 'GET':
-        return render_template('testing.html')
 
     return render_template('testing.html')
 
