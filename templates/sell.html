@@ -13,7 +13,7 @@
     </div>
     <div class="mb-3">
       <label for="cantidad" class="form-label">Quantity Sold</label>
-      <input type="number" name="cantidad" class="form-control" required min="1">
+      <input type="number" name="quantity" class="form-control" required min="1">
     </div>
     <button type="submit" name="register_sale" class="btn btn-primary">Register Sale</button>
   </form>
@@ -31,14 +31,14 @@
       <div id="components">
         <div class="row mb-2">
           <div class="col">
-            <select name="component" class="form-select">
-              {% for item in inventory['Product ID'] %}
+            <select name="component[]" class="form-select">
+              {% for item in inventory %}
                 <option value="{{ item }}">{{ item }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="col">
-            <input type="number" name="comp_qty" class="form-control" min="1" placeholder="Qty">
+            <input type="number" name="comp_qty[]" class="form-control" min="1" placeholder="Qty">
           </div>
         </div>
       </div>
@@ -54,14 +54,14 @@
     row.className = 'row mb-2';
     row.innerHTML = `
       <div class="col">
-        <select name="component" class="form-select">
-          {% for item in inventory['Product ID'] %}
+        <select name="component[]" class="form-select">
+          {% for item in inventory %}
             <option value="{{ item }}">{{ item }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="col">
-        <input type="number" name="comp_qty" class="form-control" min="1" placeholder="Qty">
+        <input type="number" name="comp_qty[]" class="form-control" min="1" placeholder="Qty">
       </div>
     `;
     document.getElementById('components').appendChild(row);
