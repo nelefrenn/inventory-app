@@ -116,7 +116,29 @@ def testing_report():
 
     return render_template('testing_report.html', data=df.to_dict(orient='records'))
 
-# (Aquí seguirían las demás rutas: receiving, sell, inventory, reports, admin_logs)
+@app.route('/sell')
+def sell():
+    return render_template('sell.html')
+
+@app.route('/inventory')
+def inventory():
+    return render_template('inventory.html', data=[])
+
+@app.route('/reports')
+def reports():
+    return render_template('reports.html', data=[])
+
+@app.route('/admin_logs')
+def admin_logs():
+    return render_template('admin_logs.html', data=[])
+
+@app.route('/receiving')
+def receiving():
+    return render_template('receiving.html')
+
+@app.route('/testing', methods=['GET', 'POST'])
+def testing():
+    return render_template('testing.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
