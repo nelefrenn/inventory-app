@@ -92,100 +92,33 @@ def daily():
         return redirect(url_for('login'))
     return render_template('daily.html')
 
-@app.route('/testing', methods=['GET', 'POST'])
-def testing():
-    if 'user' not in session or session['user']['role'] not in ['daily', 'admin']:
+@app.route('/testing_report')
+def testing_report():
+    if 'user' not in session or session['user']['role'] != 'admin':
         flash("Access denied.")
         return redirect(url_for('login'))
 
-    po_number = None
-    po_data = []
+    if not os.path.exists(TESTING_LOG_CSV):
+        return render_template('testing_report.html', data=[])
 
-    if request.method == 'POST':
-        if 'load_po' in request.form:
-            po_number = request.form['po_number']
-            session['po_number'] = po_number
-            if os.path.exists(RECEIVING_TEMP_CSV):
-                df = pd.read_csv(RECEIVING_TEMP_CSV)
-                filtered = df[df['PO Number'] == po_number]
-                grouped = filtered.groupby('Product ID').sum().reset_index()
-                for _, row in grouped.iterrows():
-                    po_data.append({
-                        'Product ID': row['Product ID'],
-                        'Received': row['Quantity']
-                    })
-        elif 'start' in request.form:
-            session['start_time'] = datetime.now().isoformat()
-            flash("Testing started.")
-            po_number = session.get('po_number')
-            if os.path.exists(RECEIVING_TEMP_CSV):
-                df = pd.read_csv(RECEIVING_TEMP_CSV)
-                filtered = df[df['PO Number'] == po_number]
-                grouped = filtered.groupby('Product ID').sum().reset_index()
-                for _, row in grouped.iterrows():
-                    po_data.append({
-                        'Product ID': row['Product ID'],
-                        'Received': row['Quantity']
-                    })
-        elif 'stop' in request.form:
-            start_time = session.pop('start_time', None)
-            po_number = session.get('po_number', 'Unknown')
-            if start_time:
-                stop_time = datetime.now()
-                start_dt = datetime.fromisoformat(start_time)
-                hours_worked = round((stop_time - start_dt).total_seconds() / 3600, 2)
-                user = session['user']
-                log_entry = [
-                    datetime.now().date(),
-                    user['first'],
-                    user['second'],
-                    'Testing',
-                    po_number,
-                    hours_worked
-                ]
-                if not os.path.exists(PRODUCTION_LOG_CSV):
-                    with open(PRODUCTION_LOG_CSV, 'w', newline='') as file:
-                        writer = csv.writer(file)
-                        writer.writerow(['Date', 'First Name', 'Second Name', 'Activity', 'PO Number', 'Hours Worked'])
-                with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
-                    writer = csv.writer(file)
-                    writer.writerow(log_entry)
+    df = pd.read_csv(TESTING_LOG_CSV)
 
-                # Descontar productos fallidos y registrar log
-                total_rows = int(request.form['total_rows'])
-                inventory_df = pd.read_csv(INVENTORY_CSV)
-                testing_log = []
-                for i in range(1, total_rows + 1):
-                    product_id = request.form.get(f'product_id_{i}')
-                    failed = int(request.form.get(f'failed_{i}', 0))
-                    tested = int(request.form.get(f'tested_{i}', 0))
-                    good = tested - failed if tested >= failed else 0
+    po_filter = request.args.get('po_number', '').strip()
+    product_filter = request.args.get('product_id', '').strip()
+    operator_filter = request.args.get('operator', '').strip().lower()
 
-                    testing_log.append([
-                        datetime.now().date(), po_number, user['first'], user['second'],
-                        product_id, tested, good, failed
-                    ])
+    if po_filter:
+        df = df[df['PO Number'].astype(str).str.contains(po_filter, case=False)]
+    if product_filter:
+        df = df[df['Product ID'].astype(str).str.contains(product_filter, case=False)]
+    if operator_filter:
+        df = df[df['First Name'].str.lower().str.contains(operator_filter) | df['Second Name'].str.lower().str.contains(operator_filter)]
 
-                    if product_id in inventory_df['Product ID'].values:
-                        inventory_df.loc[inventory_df['Product ID'] == product_id, 'Quantity'] -= failed
+    return render_template('testing_report.html', data=df.to_dict(orient='records'))
 
-                inventory_df.to_csv(INVENTORY_CSV, index=False)
+# (Aquí seguirían las demás rutas: receiving, sell, inventory, reports, admin_logs)
 
-                if not os.path.exists(TESTING_LOG_CSV):
-                    with open(TESTING_LOG_CSV, 'w', newline='') as f:
-                        writer = csv.writer(f)
-                        writer.writerow(['Date', 'PO Number', 'First Name', 'Second Name', 'Product ID', 'Tested', 'Good', 'Failed'])
-                with open(TESTING_LOG_CSV, 'a', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerows(testing_log)
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
 
-            flash("Session ended. Work logged. Inventory updated.")
-            session.clear()
-            return redirect(url_for('login'))
-        elif 'close' in request.form:
-            flash("PO closed.")
-            session.pop('po_number', None)
-
-    return render_template('testing.html', po_data=po_data, po_number=po_number)
-
-# ... El resto de rutas como receiving, sell, inventory, reports, admin_logs iría después ...
