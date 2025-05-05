@@ -7,11 +7,14 @@ import csv
 app = Flask(__name__)
 app.secret_key = 'secure-key'
 
+# CSV paths
 KIT_CSV = 'kit.csv'
 INVENTORY_CSV = 'inventory.csv'
 USERS_CSV = 'users.csv'
 ADMIN_LOGS_CSV = 'admin_logs.csv'
+PRODUCTION_LOG_CSV = 'production_log.csv'
 
+# --- Helper functions ---
 def load_users():
     return pd.read_csv(USERS_CSV)
 
@@ -43,6 +46,7 @@ def read_admin_logs():
         return pd.read_csv(ADMIN_LOGS_CSV, names=['Timestamp', 'Username', 'Action', 'Details'])
     return pd.DataFrame(columns=['Timestamp', 'Username', 'Action', 'Details'])
 
+# --- Routes ---
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -87,11 +91,47 @@ def daily():
         return redirect(url_for('login'))
     return render_template('daily.html')
 
-@app.route('/receiving')
+@app.route('/receiving', methods=['GET', 'POST'])
 def receiving():
     if 'user' not in session or session['user']['role'] not in ['daily', 'admin']:
         flash("Access denied.")
         return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'start':
+            session['start_time'] = datetime.now().isoformat()
+            flash("Receiving started.")
+
+        elif action == 'stop':
+            start_time = session.pop('start_time', None)
+            if start_time:
+                stop_time = datetime.now()
+                start_dt = datetime.fromisoformat(start_time)
+                hours_worked = round((stop_time - start_dt).total_seconds() / 3600, 2)
+
+                user = session['user']
+                po_number = request.form.get('po_number', 'Unknown')
+                log_entry = [
+                    datetime.now().date(),
+                    user['first'],
+                    user['second'],
+                    'Receiving',
+                    po_number,
+                    hours_worked
+                ]
+                with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerow(log_entry)
+
+            flash("Session ended. Work logged.")
+            session.clear()
+            return redirect(url_for('login'))
+
+        elif action == 'close':
+            flash("PO closed.")
+
     return render_template('receiving.html')
 
 @app.route('/testing')
@@ -133,5 +173,4 @@ def admin_logs():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
 
