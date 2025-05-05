@@ -1,118 +1,102 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 import pandas as pd
 import os
 from io import BytesIO
+from datetime import datetime
 
 app = Flask(__name__)
+app.secret_key = 'secure-key'  # Change in production
 
+# CSV paths
 KIT_CSV = 'kit.csv'
 INVENTORY_CSV = 'inventory.csv'
-EXPORT_XLSX = 'inventory_export.xlsx'
+USERS_CSV = 'users.csv'
 
-# Leer datos
+# --- Helper Functions ---
+def load_users():
+    return pd.read_csv(USERS_CSV)
 
-def read_inventory():
-    return pd.read_csv(INVENTORY_CSV)
+def verify_user(first, second, password):
+    df = load_users()
+    match = df[(df['First Name'] == first) & (df['Second Name'] == second)]
+    if not match.empty and match.iloc[0]['Password'] == password:
+        return match.iloc[0]['Role']
+    return None
 
-def read_kits():
-    return pd.read_csv(KIT_CSV)
+def register_user(first, second, password):
+    df = load_users()
+    mask = (df['First Name'] == first) & (df['Second Name'] == second)
+    if not df[mask].empty:
+        if pd.isna(df.loc[mask, 'Password'].values[0]) or df.loc[mask, 'Password'].values[0] == '':
+            df.loc[mask, 'Password'] = password
+            df.to_csv(USERS_CSV, index=False)
+            return True
+    return False
 
-# Guardar nuevo producto al inventario
-def add_product_to_inventory(product_id, qty, min_qty):
-    inv = read_inventory()
-    new_row = pd.DataFrame([[product_id, qty, min_qty]], columns=['Product ID', 'Qty', 'Min Qty'])
-    inv = pd.concat([inv, new_row], ignore_index=True)
-    inv.to_csv(INVENTORY_CSV, index=False)
-
-# Actualizar producto existente
-def update_product(product_id, new_qty, new_min_qty=None):
-    inv = read_inventory()
-    inv.loc[inv['Product ID'] == product_id, 'Qty'] = new_qty
-    if new_min_qty is not None:
-        inv.loc[inv['Product ID'] == product_id, 'Min Qty'] = new_min_qty
-    inv.to_csv(INVENTORY_CSV, index=False)
-
-# Guardar nuevo kit
-def add_new_kit(kit_name, components):
-    rows = []
-    for comp in components:
-        rows.append([kit_name, comp['product'], comp['quantity']])
-    new_kit_df = pd.DataFrame(rows, columns=['Product ID', 'Component Product ID', 'Quantity'])
-    existing = read_kits()
-    updated = pd.concat([existing, new_kit_df], ignore_index=True)
-    updated.to_csv(KIT_CSV, index=False)
-
-# Calcular consumo por venta de kits
-def consumir_kit(kit_name, cantidad):
-    kits = read_kits()
-    inv = read_inventory()
-    componentes = kits[kits['Product ID'] == kit_name]
-
-    for _, fila in componentes.iterrows():
-        comp = fila['Component Product ID']
-        q = pd.to_numeric(fila['Quantity'], errors='coerce')
-        inv.loc[inv['Product ID'] == comp, 'Qty'] -= q * cantidad
-
-    inv.to_csv(INVENTORY_CSV, index=False)
-
+# --- Routes ---
 @app.route('/')
-@app.route('/sell', methods=['GET', 'POST'])
-def sell():
-    kits = read_kits()['Product ID'].unique()
-    inventory = read_inventory()
-    if request.method == 'POST':
-        if 'register_sale' in request.form:
-            kit = request.form['kit']
-            qty = int(request.form['cantidad'])
-            consumir_kit(kit, qty)
-            return redirect(url_for('inventory'))
-        elif 'create_kit' in request.form:
-            kit_name = request.form['kit_name']
-            components = []
-            for i in range(0, len(request.form.getlist('component'))):
-                components.append({
-                    'product': request.form.getlist('component')[i],
-                    'quantity': float(request.form.getlist('comp_qty')[i])
-                })
-            add_new_kit(kit_name, components)
-            return redirect(url_for('sell'))
-    return render_template('sell.html', kits=kits, inventory=inventory)
+def home():
+    return redirect(url_for('login'))
 
-@app.route('/inventory', methods=['GET', 'POST'])
-def inventory():
-    show_all = request.args.get('all') == '1'
-    inv = read_inventory()
-    if not show_all:
-        inv = inv[inv['Qty'] < inv['Min Qty']]
-
+@app.route('/login', methods=['GET', 'POST'])
+def login():
     if request.method == 'POST':
-        if 'update_product' in request.form:
-            product = request.form['update_product']
-            qty = float(request.form['update_qty'])
-            min_qty = request.form.get('update_min')
-            min_qty = float(min_qty) if min_qty else None
-            update_product(product, qty, min_qty)
+        first = request.form['firstname']
+        second = request.form['secondname']
+        password = request.form['password']
+        role = verify_user(first, second, password)
+        if role:
+            session['user'] = {'first': first, 'second': second, 'role': role}
+            flash(f"Welcome {first} {second} ({role})")
+            if role == 'admin':
+                return redirect(url_for('inventory'))
+            else:
+                return redirect(url_for('daily'))
         else:
-            new_product = request.form['product']
-            qty = float(request.form['qty'])
-            min_qty = float(request.form['min_qty'])
-            add_product_to_inventory(new_product, qty, min_qty)
-        return redirect(url_for('inventory'))
+            flash("Invalid credentials")
+    return render_template('login.html')
 
-    return render_template('inventory.html', inventory=inv.to_dict(orient='records'), show_all=show_all)
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        first = request.form['firstname']
+        second = request.form['secondname']
+        password = request.form['password']
+        if register_user(first, second, password):
+            flash("Registration successful. Please log in.")
+            return redirect(url_for('login'))
+        else:
+            flash("You are not pre-authorized or already registered.")
+    return render_template('register.html')
 
-@app.route('/export')
-def export():
-    inv = read_inventory()
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        inv.to_excel(writer, index=False, sheet_name='Inventory')
-    output.seek(0)
-    return send_file(output, download_name=EXPORT_XLSX, as_attachment=True)
+@app.route('/daily')
+def daily():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    if session['user']['role'] not in ['daily', 'admin']:
+        return redirect(url_for('login'))
+    return render_template('daily.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("You have been logged out.")
+    return redirect(url_for('login'))
+
+# Placeholder routes to connect UI
+@app.route('/receiving')
+def receiving():
+    return render_template('receiving.html')
+
+@app.route('/testing')
+def testing():
+    return render_template('testing.html')
+
+@app.route('/reports')
+def reports():
+    return render_template('reports.html', daily_data=[], weekly_data=[], comparison_data=[])
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
 
