@@ -42,41 +42,45 @@
     </div>
   </div>
 
-  <h4 class="mt-5">Add New Product</h4>
-  <form method="post" class="row g-3">
-    <div class="col-md-4">
-      <input type="text" name="product" class="form-control" placeholder="Product ID" required>
-    </div>
-    <div class="col-md-3">
-      <input type="number" name="qty" class="form-control" placeholder="Qty" required>
-    </div>
-    <div class="col-md-3">
-      <input type="number" name="min_qty" class="form-control" placeholder="Min Qty" required>
-    </div>
-    <div class="col-md-2">
-      <button type="submit" class="btn btn-success">Add</button>
-    </div>
-  </form>
+  <fieldset class="border p-4 rounded mt-5">
+    <legend class="w-auto px-2">Add New Product</legend>
+    <form method="post" class="row g-3">
+      <div class="col-md-4">
+        <input type="text" name="product" class="form-control" placeholder="Product ID" required>
+      </div>
+      <div class="col-md-3">
+        <input type="number" name="qty" class="form-control" placeholder="Qty" required>
+      </div>
+      <div class="col-md-3">
+        <input type="number" name="min_qty" class="form-control" placeholder="Min Qty" required>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-success">Add</button>
+      </div>
+    </form>
+  </fieldset>
 
-  <h4 class="mt-5">Update Existing Product</h4>
-  <form method="post" class="row g-3">
-    <div class="col-md-4">
-      <select name="update_product" class="form-select" required>
-        {% for item in inventory %}
-          <option value="{{ item['Product ID'] }}">{{ item['Product ID'] }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-3">
-      <input type="number" name="update_qty" class="form-control" placeholder="New Qty" required>
-    </div>
-    <div class="col-md-3">
-      <input type="number" name="update_min" class="form-control" placeholder="New Min Qty">
-    </div>
-    <div class="col-md-2">
-      <button type="submit" class="btn btn-warning">Update</button>
-    </div>
-  </form>
+  <fieldset class="border p-4 rounded mt-5">
+    <legend class="w-auto px-2">Update Existing Product</legend>
+    <form method="post" class="row g-3">
+      <div class="col-md-4">
+        <select name="update_product" class="form-select" required>
+          {% for item in inventory %}
+            <option value="{{ item['Product ID'] }}">{{ item['Product ID'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <input type="number" name="update_qty" class="form-control" placeholder="New Qty" required>
+      </div>
+      <div class="col-md-3">
+        <input type="number" name="update_min" class="form-control" placeholder="New Min Qty">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-warning">Update</button>
+      </div>
+    </form>
+  </fieldset>
 </div>
 
 <style>
