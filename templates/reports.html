@@ -3,70 +3,84 @@
 <div class="container mt-4">
   <h2>Production Reports</h2>
 
-  <div class="mb-3 d-flex justify-content-end gap-2">
-    <button onclick="window.print()" class="btn btn-outline-secondary">Print</button>
-    <button onclick="exportToExcel('reportTable')" class="btn btn-outline-success">Export to Excel</button>
-  </div>
+  <fieldset class="border p-3 mb-4 rounded">
+    <legend class="float-none w-auto px-2">Options</legend>
+    <div class="d-flex justify-content-end gap-2">
+      <button onclick="window.print()" class="btn btn-outline-secondary">Print A4</button>
+      <button onclick="exportToExcel('reportTable')" class="btn btn-outline-success">Export to Excel</button>
+    </div>
+  </fieldset>
 
-  <table id="reportTable" class="table table-bordered table-striped">
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>First Name</th>
-        <th>Second Name</th>
-        <th>Activity</th>
-        <th>PO Number</th>
-        <th>Hours Worked</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in data %}
-      <tr>
-        <td>{{ row['Date'] }}</td>
-        <td>{{ row['First Name'] }}</td>
-        <td>{{ row['Second Name'] }}</td>
-        <td>{{ row['Activity'] }}</td>
-        <td>{{ row['PO Number'] }}</td>
-        <td>{{ row['Hours Worked'] }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <fieldset class="border p-3 rounded">
+    <legend class="float-none w-auto px-2">Report Table</legend>
+    <div class="table-responsive">
+      <table id="reportTable" class="table table-bordered table-striped">
+        <thead class="table-dark">
+          <tr>
+            <th>Date</th>
+            <th>First Name</th>
+            <th>Second Name</th>
+            <th>Activity</th>
+            <th>PO Number</th>
+            <th>Hours Worked</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data %}
+          <tr>
+            <td>{{ row['Date'] }}</td>
+            <td>{{ row['First Name'] }}</td>
+            <td>{{ row['Second Name'] }}</td>
+            <td>{{ row['Activity'] }}</td>
+            <td>{{ row['PO Number'] }}</td>
+            <td>{{ row['Hours Worked'] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </fieldset>
 </div>
 
 <style>
-@media print {
-  @page {
-    size: A4;
-    margin: 1cm;
+  @media print {
+    @page {
+      size: A4;
+      margin: 1cm;
+    }
+    body * {
+      visibility: hidden;
+    }
+    .container, .container * {
+      visibility: visible;
+    }
+    .container {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+    .btn, form, nav {
+      display: none;
+    }
+    .table th, .table td {
+      font-size: 11pt;
+      padding: 6px;
+    }
   }
-  body * {
-    visibility: hidden;
-  }
-  .container, .container * {
-    visibility: visible;
-  }
-  .container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-  .btn, form, nav {
-    display: none;
-  }
-}
 </style>
 
 <script>
 function exportToExcel(tableID) {
-  let table = document.getElementById(tableID);
-  let html = table.outerHTML;
-  let url = 'data:application/vnd.ms-excel,' + escape(html);
-  let link = document.createElement('a');
+  const table = document.getElementById(tableID);
+  const html = table.outerHTML.replace(/ /g, '%20');
+  const url = 'data:application/vnd.ms-excel,' + html;
+  const link = document.createElement('a');
   link.href = url;
   link.download = 'production_report.xls';
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 }
 </script>
 {% endblock %}
