@@ -121,6 +121,12 @@ def receiving():
                     po_number,
                     hours_worked
                 ]
+
+                if not os.path.exists(PRODUCTION_LOG_CSV):
+                    with open(PRODUCTION_LOG_CSV, 'w', newline='') as file:
+                        writer = csv.writer(file)
+                        writer.writerow(['Date', 'First Name', 'Second Name', 'Activity', 'PO Number', 'Hours Worked'])
+
                 with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
                     writer = csv.writer(file)
                     writer.writerow(log_entry)
@@ -173,4 +179,3 @@ def admin_logs():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
