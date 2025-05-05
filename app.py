@@ -5,15 +5,12 @@ from datetime import datetime
 import csv
 
 app = Flask(__name__)
-app.secret_key = 'secure-key'  # Cambia esto en producción
+app.secret_key = 'secure-key'
 
-# Rutas de archivos CSV
 KIT_CSV = 'kit.csv'
 INVENTORY_CSV = 'inventory.csv'
 USERS_CSV = 'users.csv'
 ADMIN_LOGS_CSV = 'admin_logs.csv'
-
-# --- Funciones auxiliares ---
 
 def load_users():
     return pd.read_csv(USERS_CSV)
@@ -46,8 +43,6 @@ def read_admin_logs():
         return pd.read_csv(ADMIN_LOGS_CSV, names=['Timestamp', 'Username', 'Action', 'Details'])
     return pd.DataFrame(columns=['Timestamp', 'Username', 'Action', 'Details'])
 
-# --- Rutas principales ---
-
 @app.route('/')
 def home():
     return redirect(url_for('login'))
@@ -62,10 +57,7 @@ def login():
         if role:
             session['user'] = {'first': first, 'second': second, 'role': role}
             flash(f"Welcome {first} {second} ({role})")
-            if role == 'admin':
-                return redirect(url_for('inventory'))
-            else:
-                return redirect(url_for('daily'))
+            return redirect(url_for('daily'))
         else:
             flash("Invalid credentials")
     return render_template('login.html')
@@ -93,20 +85,41 @@ def logout():
 def daily():
     if 'user' not in session:
         return redirect(url_for('login'))
-    if session['user']['role'] not in ['daily', 'admin']:
-        return redirect(url_for('login'))
     return render_template('daily.html')
 
 @app.route('/receiving')
 def receiving():
+    if 'user' not in session or session['user']['role'] not in ['daily', 'admin']:
+        flash("Access denied.")
+        return redirect(url_for('login'))
     return render_template('receiving.html')
 
 @app.route('/testing')
 def testing():
+    if 'user' not in session or session['user']['role'] not in ['daily', 'admin']:
+        flash("Access denied.")
+        return redirect(url_for('login'))
     return render_template('testing.html')
+
+@app.route('/inventory')
+def inventory():
+    if 'user' not in session or session['user']['role'] != 'admin':
+        flash("Access denied.")
+        return redirect(url_for('login'))
+    return render_template('inventory.html')
+
+@app.route('/sell')
+def sell():
+    if 'user' not in session or session['user']['role'] != 'admin':
+        flash("Access denied.")
+        return redirect(url_for('login'))
+    return render_template('sell.html')
 
 @app.route('/reports')
 def reports():
+    if 'user' not in session or session['user']['role'] != 'admin':
+        flash("Access denied.")
+        return redirect(url_for('login'))
     return render_template('reports.html', daily_data=[], weekly_data=[], comparison_data=[])
 
 @app.route('/admin_logs')
