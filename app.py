@@ -7,12 +7,12 @@ import csv
 app = Flask(__name__)
 app.secret_key = 'secure-key'
 
-# CSV paths
 KIT_CSV = 'kit.csv'
 INVENTORY_CSV = 'inventory.csv'
 USERS_CSV = 'users.csv'
 ADMIN_LOGS_CSV = 'admin_logs.csv'
 PRODUCTION_LOG_CSV = 'production_log.csv'
+RECEIVING_TEMP_CSV = 'receiving_temp.csv'
 
 # --- Helper functions ---
 def load_users():
@@ -97,22 +97,46 @@ def receiving():
         flash("Access denied.")
         return redirect(url_for('login'))
 
-    if request.method == 'POST':
-        action = request.form.get('action')
+    po_number = None
+    current_po = []
+    inventory_df = pd.read_csv(INVENTORY_CSV)
+    inventory = inventory_df['Product ID'].tolist()
+    po_active = False
 
-        if action == 'start':
+    if request.method == 'POST':
+        if 'new_po' in request.form or 'continue_po' in request.form:
+            po_number = request.form['po_number']
+            session['po_number'] = po_number
+            po_active = True
+            if os.path.exists(RECEIVING_TEMP_CSV):
+                df = pd.read_csv(RECEIVING_TEMP_CSV)
+                current_po = df[df['PO Number'] == po_number].to_dict('records')
+        elif 'add_product' in request.form:
+            po_number = session.get('po_number')
+            product_id = request.form['product_id']
+            quantity = int(request.form['quantity'])
+            row = {'PO Number': po_number, 'Product ID': product_id, 'Quantity': quantity}
+            if os.path.exists(RECEIVING_TEMP_CSV):
+                df = pd.read_csv(RECEIVING_TEMP_CSV)
+                df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+            else:
+                df = pd.DataFrame([row])
+            df.to_csv(RECEIVING_TEMP_CSV, index=False)
+            current_po = df[df['PO Number'] == po_number].to_dict('records')
+            po_active = True
+        elif 'start' in request.form:
             session['start_time'] = datetime.now().isoformat()
             flash("Receiving started.")
-
-        elif action == 'stop':
+            po_number = session.get('po_number')
+            po_active = True
+        elif 'stop' in request.form:
             start_time = session.pop('start_time', None)
             if start_time:
                 stop_time = datetime.now()
                 start_dt = datetime.fromisoformat(start_time)
                 hours_worked = round((stop_time - start_dt).total_seconds() / 3600, 2)
-
                 user = session['user']
-                po_number = request.form.get('po_number', 'Unknown')
+                po_number = session.get('po_number', 'Unknown')
                 log_entry = [
                     datetime.now().date(),
                     user['first'],
@@ -121,24 +145,28 @@ def receiving():
                     po_number,
                     hours_worked
                 ]
-
                 if not os.path.exists(PRODUCTION_LOG_CSV):
                     with open(PRODUCTION_LOG_CSV, 'w', newline='') as file:
                         writer = csv.writer(file)
                         writer.writerow(['Date', 'First Name', 'Second Name', 'Activity', 'PO Number', 'Hours Worked'])
-
                 with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
                     writer = csv.writer(file)
                     writer.writerow(log_entry)
-
             flash("Session ended. Work logged.")
             session.clear()
             return redirect(url_for('login'))
-
-        elif action == 'close':
+        elif 'close' in request.form:
             flash("PO closed.")
+            session.pop('po_number', None)
 
-    return render_template('receiving.html')
+    if 'po_number' in session:
+        po_number = session['po_number']
+        po_active = True
+        if os.path.exists(RECEIVING_TEMP_CSV):
+            df = pd.read_csv(RECEIVING_TEMP_CSV)
+            current_po = df[df['PO Number'] == po_number].to_dict('records')
+
+    return render_template('receiving.html', po_number=po_number, inventory=inventory, current_po=current_po, po_active=po_active)
 
 @app.route('/testing')
 def testing():
