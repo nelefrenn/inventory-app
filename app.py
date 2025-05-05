@@ -132,7 +132,7 @@ def reports():
 def admin_logs():
     return render_template('admin_logs.html', data=[])
 
-@app.route('/receiving')
+@app.route('/receiving', methods=['GET', 'POST'])
 def receiving():
     return render_template('receiving.html')
 
