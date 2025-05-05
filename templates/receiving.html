@@ -21,6 +21,7 @@
   {% if po_active %}
   <form method="post">
     <input type="hidden" name="po_number" value="{{ po_number }}">
+
     <div class="row mb-3">
       <div class="col-md-4">
         <label class="form-label">Product ID</label>
@@ -38,36 +39,34 @@
         <button type="submit" name="add_product" class="btn btn-primary">Add Product</button>
       </div>
     </div>
-  </form>
 
-  {% if current_po %}
-  <h5>PO #{{ po_number }} - Received Items</h5>
-  <table class="table table-striped">
-    <thead>
-      <tr>
-        <th>Product ID</th>
-        <th>Quantity</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in current_po %}
-      <tr>
-        <td>{{ row['Product ID'] }}</td>
-        <td>{{ row['Quantity'] }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    {% if current_po %}
+    <h5>PO #{{ po_number }} - Received Items</h5>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Product ID</th>
+          <th>Quantity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in current_po %}
+        <tr>
+          <td>{{ row['Product ID'] }}</td>
+          <td>{{ row['Quantity'] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
 
-  <div class="d-flex gap-3">
-    <form method="post">
-      <input type="hidden" name="po_number" value="{{ po_number }}">
+    <div class="d-flex gap-3">
       <button type="submit" name="start" class="btn btn-success">Start</button>
       <button type="submit" name="stop" class="btn btn-warning">Stop</button>
       <button type="submit" name="close" class="btn btn-danger" onclick="return confirm('Are you sure you want to close this PO?')">Close PO</button>
-    </form>
-  </div>
-  {% endif %}
+    </div>
+    {% endif %}
+  </form>
   {% endif %}
 </div>
 {% endblock %}
+
