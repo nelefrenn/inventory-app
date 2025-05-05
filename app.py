@@ -168,12 +168,72 @@ def receiving():
 
     return render_template('receiving.html', po_number=po_number, inventory=inventory, current_po=current_po, po_active=po_active)
 
-@app.route('/testing')
+@app.route('/testing', methods=['GET', 'POST'])
 def testing():
     if 'user' not in session or session['user']['role'] not in ['daily', 'admin']:
         flash("Access denied.")
         return redirect(url_for('login'))
-    return render_template('testing.html')
+
+    po_number = None
+    po_data = []
+
+    if request.method == 'POST':
+        if 'load_po' in request.form:
+            po_number = request.form['po_number']
+            session['po_number'] = po_number
+            if os.path.exists(RECEIVING_TEMP_CSV):
+                df = pd.read_csv(RECEIVING_TEMP_CSV)
+                filtered = df[df['PO Number'] == po_number]
+                grouped = filtered.groupby('Product ID').sum().reset_index()
+                for _, row in grouped.iterrows():
+                    po_data.append({
+                        'Product ID': row['Product ID'],
+                        'Received': row['Quantity']
+                    })
+        elif 'start' in request.form:
+            session['start_time'] = datetime.now().isoformat()
+            flash("Testing started.")
+            po_number = session.get('po_number')
+            if os.path.exists(RECEIVING_TEMP_CSV):
+                df = pd.read_csv(RECEIVING_TEMP_CSV)
+                filtered = df[df['PO Number'] == po_number]
+                grouped = filtered.groupby('Product ID').sum().reset_index()
+                for _, row in grouped.iterrows():
+                    po_data.append({
+                        'Product ID': row['Product ID'],
+                        'Received': row['Quantity']
+                    })
+        elif 'stop' in request.form:
+            start_time = session.pop('start_time', None)
+            po_number = session.get('po_number', 'Unknown')
+            if start_time:
+                stop_time = datetime.now()
+                start_dt = datetime.fromisoformat(start_time)
+                hours_worked = round((stop_time - start_dt).total_seconds() / 3600, 2)
+                user = session['user']
+                log_entry = [
+                    datetime.now().date(),
+                    user['first'],
+                    user['second'],
+                    'Testing',
+                    po_number,
+                    hours_worked
+                ]
+                if not os.path.exists(PRODUCTION_LOG_CSV):
+                    with open(PRODUCTION_LOG_CSV, 'w', newline='') as file:
+                        writer = csv.writer(file)
+                        writer.writerow(['Date', 'First Name', 'Second Name', 'Activity', 'PO Number', 'Hours Worked'])
+                with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerow(log_entry)
+            flash("Session ended. Work logged.")
+            session.clear()
+            return redirect(url_for('login'))
+        elif 'close' in request.form:
+            flash("PO closed.")
+            session.pop('po_number', None)
+
+    return render_template('testing.html', po_data=po_data, po_number=po_number)
 
 @app.route('/inventory')
 def inventory():
@@ -207,3 +267,4 @@ def admin_logs():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
