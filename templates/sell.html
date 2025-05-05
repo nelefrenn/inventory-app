@@ -1,51 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-  <h2>Register Kit Sale</h2>
-  <form method="post" action="/sell">
-    <div class="mb-3">
-      <label for="kit" class="form-label">Select Kit</label>
-      <select class="form-select" name="kit" id="kit" required>
-        {% for kit in kits %}
-          <option value="{{ kit }}">{{ kit }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="mb-3">
-      <label for="cantidad" class="form-label">Quantity Sold</label>
-      <input type="number" name="quantity" class="form-control" required min="1">
-    </div>
-    <button type="submit" name="register_sale" class="btn btn-primary">Register Sale</button>
-  </form>
+  <fieldset class="border p-4 rounded">
+    <legend class="w-auto px-2">Register Kit Sale</legend>
+    <form method="post" action="/sell">
+      <div class="mb-3">
+        <label for="kit" class="form-label">Select Kit</label>
+        <select class="form-select" name="kit" id="kit" required>
+          {% for kit in kits %}
+            <option value="{{ kit }}">{{ kit }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="cantidad" class="form-label">Quantity Sold</label>
+        <input type="number" name="quantity" class="form-control" required min="1">
+      </div>
+      <button type="submit" name="register_sale" class="btn btn-primary">Register Sale</button>
+    </form>
+  </fieldset>
 
-  <hr>
+  <hr class="my-5">
 
-  <h2 class="mt-5">Create New Kit</h2>
-  <form method="post" action="/sell">
-    <div class="mb-3">
-      <label class="form-label">New Kit Name</label>
-      <input type="text" name="kit_name" class="form-control" required>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Select Components</label>
-      <div id="components">
-        <div class="row mb-2">
-          <div class="col">
-            <select name="component[]" class="form-select">
-              {% for item in inventory %}
-                <option value="{{ item }}">{{ item }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col">
-            <input type="number" name="comp_qty[]" class="form-control" min="1" placeholder="Qty">
+  <fieldset class="border p-4 rounded mt-4">
+    <legend class="w-auto px-2">Create New Kit</legend>
+    <form method="post" action="/sell">
+      <div class="mb-3">
+        <label class="form-label">New Kit Name</label>
+        <input type="text" name="kit_name" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Select Components</label>
+        <div id="components">
+          <div class="row mb-2">
+            <div class="col">
+              <select name="component[]" class="form-select">
+                {% for item in inventory %}
+                  <option value="{{ item }}">{{ item }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col">
+              <input type="number" name="comp_qty[]" class="form-control" min="1" placeholder="Qty">
+            </div>
           </div>
         </div>
+        <button type="button" class="btn btn-secondary" onclick="addComponent()">Add More Component</button>
       </div>
-      <button type="button" class="btn btn-secondary" onclick="addComponent()">Add More Component</button>
-    </div>
-    <button type="submit" name="create_kit" class="btn btn-success">Save New Kit</button>
-  </form>
+      <button type="submit" name="create_kit" class="btn btn-success">Save New Kit</button>
+    </form>
+  </fieldset>
 </div>
 
 <script>
