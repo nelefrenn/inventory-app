@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Testing Report</h2>
+
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label class="form-label">PO Number</label>
+      <input type="text" name="po_number" class="form-control" value="{{ request.args.get('po_number', '') }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Product ID</label>
+      <input type="text" name="product_id" class="form-control" value="{{ request.args.get('product_id', '') }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Operator</label>
+      <input type="text" name="operator" class="form-control" value="{{ request.args.get('operator', '') }}">
+    </div>
+    <div class="col-md-3 d-grid">
+      <label class="form-label">&nbsp;</label>
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
+  </form>
+
+  <table class="table table-striped table-hover">
+    <thead class="table-light">
+      <tr>
+        <th>Date</th>
+        <th>PO Number</th>
+        <th>Operator</th>
+        <th>Product ID</th>
+        <th>Tested</th>
+        <th>Good</th>
+        <th>Failed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in data %}
+      <tr>
+        <td>{{ row['Date'] }}</td>
+        <td>{{ row['PO Number'] }}</td>
+        <td>{{ row['First Name'] }} {{ row['Second Name'] }}</td>
+        <td>{{ row['Product ID'] }}</td>
+        <td>{{ row['Tested'] }}</td>
+        <td>{{ row['Good'] }}</td>
+        <td>{{ row['Failed'] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
