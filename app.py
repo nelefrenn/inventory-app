@@ -175,6 +175,18 @@ def sell():
     kits = kits_df['Kit Name'].unique().tolist()
     return render_template('sell.html', kits=kits, inventory=inventory_df['Product ID'].tolist())
 
+@app.route('/reports')
+def reports():
+    if 'user' not in session or session['user']['role'] != 'admin':
+        flash("Access denied.")
+        return redirect(url_for('login'))
+
+    if not os.path.exists(PRODUCTION_LOG_CSV):
+        return render_template('reports.html', data=[])
+
+    df = pd.read_csv(PRODUCTION_LOG_CSV, names=['Date', 'First Name', 'Second Name', 'Activity', 'PO Number', 'Hours Worked'])
+    return render_template('reports.html', data=df.to_dict(orient='records'))
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
