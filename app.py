@@ -187,6 +187,15 @@ def reports():
     df = pd.read_csv(PRODUCTION_LOG_CSV, names=['Date', 'First Name', 'Second Name', 'Activity', 'PO Number', 'Hours Worked'])
     return render_template('reports.html', data=df.to_dict(orient='records'))
 
+@app.route('/admin_logs')
+def admin_logs():
+    if 'user' not in session or session['user']['role'] != 'admin':
+        flash("Access denied.")
+        return redirect(url_for('login'))
+
+    logs = read_admin_logs()
+    return render_template('admin_logs.html', data=logs.to_dict(orient='records'))
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
