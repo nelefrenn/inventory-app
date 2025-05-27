@@ -174,6 +174,94 @@ def inventory():
 
     return render_template('inventory.html', inventory=df.to_dict(orient='records'))
 
+@app.route('/receiving', methods=['GET', 'POST'])
+def receiving():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    inventory_df = load_inventory()
+    po_number = None
+    current_po = load_receiving_temp()
+
+    if request.method == 'POST':
+        if 'new_po' in request.form or 'continue_po' in request.form:
+            po_number = request.form['po_number']
+        elif 'add_product' in request.form:
+            po_number = request.form['po_number']
+            product_id = request.form['product_id']
+            quantity = int(request.form['quantity'])
+            new_row = pd.DataFrame([[po_number, product_id, quantity]], columns=['PO Number', 'Product ID', 'Quantity'])
+            current_po = pd.concat([current_po, new_row], ignore_index=True)
+            save_receiving_temp(current_po)
+        elif 'start' in request.form:
+            session['start_time'] = datetime.now().isoformat()
+        elif 'stop' in request.form:
+            if not current_po.empty:
+                for _, row in current_po.iterrows():
+                    inventory_df.loc[inventory_df['Product ID'] == row['Product ID'], 'Qty'] += row['Quantity']
+                save_inventory(inventory_df)
+                duration = 0
+                if 'start_time' in session:
+                    start_time = datetime.fromisoformat(session['start_time'])
+                    duration = (datetime.now() - start_time).total_seconds() / 3600
+                with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerow([datetime.now().date(), session['user']['first'], session['user']['second'], 'Receiving', po_number, round(duration, 2)])
+                flash("Progress saved. You can continue later.")
+                return redirect(url_for('logout'))
+        elif 'close' in request.form:
+            flash("PO has been marked as closed. You will not be able to edit it again.")
+            clear_receiving_temp()
+            return redirect(url_for('daily'))
+
+    return render_template('receiving.html', inventory=inventory_df['Product ID'].tolist(), po_active=not current_po.empty, current_po=current_po.to_dict(orient='records'), po_number=po_number)
+
+@app.route('/testing', methods=['GET', 'POST'])
+def testing():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        po_number = request.form['po_number']
+        total_rows = int(request.form['total_rows'])
+        inventory_df = load_inventory()
+        data_to_log = []
+
+        for i in range(1, total_rows + 1):
+            product_id = request.form[f'product_id_{i}']
+            tested = int(request.form.get(f'tested_{i}', 0))
+            failed = int(request.form.get(f'failed_{i}', 0))
+            good = tested - failed
+
+            inventory_df.loc[inventory_df['Product ID'] == product_id, 'Qty'] -= failed
+            inventory_df['Qty'] = inventory_df['Qty'].clip(lower=0)
+
+            data_to_log.append([datetime.now().date(), session['user']['first'], session['user']['second'], po_number, product_id, tested, failed, good])
+
+        save_inventory(inventory_df)
+
+        with open(TESTING_LOG_CSV, 'a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(data_to_log)
+
+        if 'start' in request.form:
+            session['start_time'] = datetime.now().isoformat()
+        elif 'stop' in request.form:
+            duration = 0
+            if 'start_time' in session:
+                start_time = datetime.fromisoformat(session['start_time'])
+                duration = (datetime.now() - start_time).total_seconds() / 3600
+            with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([datetime.now().date(), session['user']['first'], session['user']['second'], 'Testing', po_number, round(duration, 2)])
+            flash("Testing progress saved.")
+            return redirect(url_for('logout'))
+        elif 'close' in request.form:
+            flash("Testing for this PO is closed.")
+            return redirect(url_for('daily'))
+
+    return render_template('testing.html')
+
 @app.route('/reports')
 def reports():
     if 'user' not in session or session['user']['role'] != 'admin':
