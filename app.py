@@ -143,34 +143,3 @@ def inventory():
 
     return render_template('inventory.html', inventory=inventory_df.to_dict(orient='records'))
 
-@app.route('/sell', methods=['GET', 'POST'])
-def sell():
-    if 'user' not in session or session['user']['role'] != 'admin':
-        return redirect(url_for('login'))
-
-    kits_df = pd.read_csv(KIT_CSV)
-    inventory_df = pd.read_csv(INVENTORY_CSV)
-
-    if request.method == 'POST':
-        if 'register_sale' in request.form:
-            kit_name = request.form['kit']
-            quantity = int(request.form['quantity'])
-            kit_components = kits_df[kits_df['Kit Name'] == kit_name]
-            for _, row in kit_components.iterrows():
-                inventory_df.loc[inventory_df['Product ID'] == row['Product ID'], 'Qty'] -= row['Quantity'] * quantity
-            inventory_df.to_csv(INVENTORY_CSV, index=False)
-            flash(f"{quantity} units of {kit_name} sold and inventory updated.")
-        elif 'create_kit' in request.form:
-            kit_name = request.form['kit_name']
-            components = request.form.getlist('component[]')
-            quantities = request.form.getlist('comp_qty[]')
-            new_rows = []
-            for comp, qty in zip(components, quantities):
-                new_rows.append({'Kit Name': kit_name, 'Product ID': comp, 'Quantity': int(qty)})
-            new_df = pd.DataFrame(new_rows)
-            kits_df = pd.concat([kits_df, new_df], ignore_index=True)
-            kits_df.to_csv(KIT_CSV, index=False)
-            flash(f"Kit '{kit_name}' created successfully.")
-
-    kits = kits_df['Kit Name'].unique().tolist()
-    return render_template('sell.html', kits=kits, inventory=inventory_df['Product ID'].tolist())
