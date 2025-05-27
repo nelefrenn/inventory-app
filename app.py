@@ -196,6 +196,34 @@ def admin_logs():
     logs = read_admin_logs()
     return render_template('admin_logs.html', data=logs.to_dict(orient='records'))
 
+@app.route('/testing_report')
+def testing_report():
+    if 'user' not in session or session['user']['role'] != 'admin':
+        flash("Access denied.")
+        return redirect(url_for('login'))
+
+    if not os.path.exists(TESTING_LOG_CSV):
+        return render_template('testing_report.html', data=[])
+
+    df = pd.read_csv(TESTING_LOG_CSV, names=[
+        'Date', 'First Name', 'Second Name', 'PO Number',
+        'Product ID', 'Tested', 'Failed', 'Good'
+    ])
+
+    po_filter = request.args.get('po_number', '').strip()
+    product_filter = request.args.get('product_id', '').strip()
+    operator_filter = request.args.get('operator', '').strip().lower()
+
+    if po_filter:
+        df = df[df['PO Number'].astype(str).str.contains(po_filter, case=False)]
+    if product_filter:
+        df = df[df['Product ID'].astype(str).str.contains(product_filter, case=False)]
+    if operator_filter:
+        df = df[df['First Name'].str.lower().str.contains(operator_filter) |
+                df['Second Name'].str.lower().str.contains(operator_filter)]
+
+    return render_template('testing_report.html', data=df.to_dict(orient='records'))
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
