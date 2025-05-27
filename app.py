@@ -110,91 +110,47 @@ def daily():
         return redirect(url_for('login'))
     return render_template('daily.html')
 
-@app.route('/inventory', methods=['GET', 'POST'])
-def inventory():
-    if 'user' not in session or session['user']['role'] != 'admin':
+@app.route('/receiving', methods=['GET', 'POST'])
+def receiving():
+    if 'user' not in session:
         return redirect(url_for('login'))
 
     inventory_df = load_inventory()
+    po_number = None
+    current_po = load_receiving_temp()
 
     if request.method == 'POST':
-        if 'product' in request.form:
-            new_product = {
-                'Product ID': request.form['product'],
-                'Qty': int(request.form['qty']),
-                'Min Qty': int(request.form['min_qty'])
-            }
-            inventory_df = pd.concat([inventory_df, pd.DataFrame([new_product])], ignore_index=True)
-        elif 'update_product' in request.form:
-            product_id = request.form['update_product']
-            new_qty = int(request.form['update_qty'])
-            new_min = request.form.get('update_min')
-            inventory_df.loc[inventory_df['Product ID'] == product_id, 'Qty'] = new_qty
-            if new_min:
-                inventory_df.loc[inventory_df['Product ID'] == product_id, 'Min Qty'] = int(new_min)
-
-        save_inventory(inventory_df)
-        flash("Inventory updated successfully.")
-        return redirect(url_for('inventory'))
-
-    show_all = request.args.get('all') == '1'
-    if not show_all:
-        inventory_df = inventory_df[inventory_df['Qty'] < inventory_df['Min Qty']]
-
-    return render_template('inventory.html', inventory=inventory_df.to_dict(orient='records'))
-
-@app.route('/sell', methods=['GET', 'POST'])
-def sell():
-    if 'user' not in session or session['user']['role'] != 'admin':
-        return redirect(url_for('login'))
-
-    kits_df = pd.read_csv(KIT_CSV)
-    inventory_df = pd.read_csv(INVENTORY_CSV)
-
-    if request.method == 'POST':
-        if 'register_sale' in request.form:
-            kit_name = request.form['kit']
+        if 'new_po' in request.form or 'continue_po' in request.form:
+            po_number = request.form['po_number']
+        elif 'add_product' in request.form:
+            po_number = request.form['po_number']
+            product_id = request.form['product_id']
             quantity = int(request.form['quantity'])
-            kit_components = kits_df[kits_df['Kit Name'] == kit_name]
-            for _, row in kit_components.iterrows():
-                inventory_df.loc[inventory_df['Product ID'] == row['Product ID'], 'Qty'] -= row['Quantity'] * quantity
-            inventory_df.to_csv(INVENTORY_CSV, index=False)
-            flash(f"{quantity} units of {kit_name} sold and inventory updated.")
-        elif 'create_kit' in request.form:
-            kit_name = request.form['kit_name']
-            components = request.form.getlist('component[]')
-            quantities = request.form.getlist('comp_qty[]')
-            new_rows = []
-            for comp, qty in zip(components, quantities):
-                new_rows.append({'Kit Name': kit_name, 'Product ID': comp, 'Quantity': int(qty)})
-            new_df = pd.DataFrame(new_rows)
-            kits_df = pd.concat([kits_df, new_df], ignore_index=True)
-            kits_df.to_csv(KIT_CSV, index=False)
-            flash(f"Kit '{kit_name}' created successfully.")
+            new_row = pd.DataFrame([[po_number, product_id, quantity]], columns=['PO Number', 'Product ID', 'Quantity'])
+            current_po = pd.concat([current_po, new_row], ignore_index=True)
+            save_receiving_temp(current_po)
+        elif 'start' in request.form:
+            session['start_time'] = datetime.now().isoformat()
+        elif 'stop' in request.form:
+            if not current_po.empty:
+                for _, row in current_po.iterrows():
+                    inventory_df.loc[inventory_df['Product ID'] == row['Product ID'], 'Qty'] += row['Quantity']
+                save_inventory(inventory_df)
+                duration = 0
+                if 'start_time' in session:
+                    start_time = datetime.fromisoformat(session['start_time'])
+                    duration = (datetime.now() - start_time).total_seconds() / 3600
+                with open(PRODUCTION_LOG_CSV, 'a', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerow([datetime.now().date(), session['user']['first'], session['user']['second'], 'Receiving', po_number, round(duration, 2)])
+                flash("Progress saved. You can continue later.")
+                return redirect(url_for('logout'))
+        elif 'close' in request.form:
+            flash("PO has been marked as closed. You will not be able to edit it again.")
+            clear_receiving_temp()
+            return redirect(url_for('daily'))
 
-    kits = kits_df['Kit Name'].unique().tolist()
-    return render_template('sell.html', kits=kits, inventory=inventory_df['Product ID'].tolist())
-
-@app.route('/reports')
-def reports():
-    if 'user' not in session or session['user']['role'] != 'admin':
-        flash("Access denied.")
-        return redirect(url_for('login'))
-
-    if not os.path.exists(PRODUCTION_LOG_CSV):
-        return render_template('reports.html', data=[])
-
-    df = pd.read_csv(PRODUCTION_LOG_CSV, names=['Date', 'First Name', 'Second Name', 'Activity', 'PO Number', 'Hours Worked'])
-    return render_template('reports.html', data=df.to_dict(orient='records'))
-
-@app.route('/admin_logs')
-def admin_logs():
-    if 'user' not in session or session['user']['role'] != 'admin':
-        flash("Access denied.")
-        return redirect(url_for('login'))
-
-    logs = read_admin_logs()
-    return render_template('admin_logs.html', data=logs.to_dict(orient='records'))
+    return render_template('receiving.html', inventory=inventory_df['Product ID'].tolist(), po_active=not current_po.empty, current_po=current_po.to_dict(orient='records'), po_number=po_number)
 
 @app.route('/testing_report')
 def testing_report():
@@ -227,3 +183,4 @@ def testing_report():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
